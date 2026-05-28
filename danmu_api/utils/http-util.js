@@ -582,6 +582,61 @@ export function updateQueryString(url, params) {
   return baseUrl + (newQuery.length ? '?' + newQuery.join('&') : '') + hash;
 }
 
+/**
+ * 从原始 URL 字符串中提取并正确解码查询参数。
+ * 优先使用 UTF-8 解码；若解码结果包含替换字符（U+FFFD），
+ * 则回退使用 GBK 解码，以兼容部分国内客户端（如 OK影视）。
+ * @param {string} rawUrl 原始请求 URL（含查询字符串）
+ * @param {string} paramName 参数名
+ * @returns {string} 解码后的参数值
+ */
+export function decodeRawQueryParam(rawUrl, paramName) {
+  const qIndex = rawUrl.indexOf('?');
+  if (qIndex === -1) return '';
+  const query = rawUrl.substring(qIndex + 1);
+  if (!query) return '';
+
+  for (const pair of query.split('&')) {
+    const eqIndex = pair.indexOf('=');
+    if (eqIndex === -1) continue;
+    const rawKey = pair.substring(0, eqIndex);
+    if (rawKey !== paramName) continue;
+
+    const rawValue = pair.substring(eqIndex + 1);
+    if (!rawValue) return '';
+
+    // 将百分号编码还原为原始字节
+    const bytes = new Uint8Array(rawValue.length);
+    let byteLen = 0;
+    for (let i = 0; i < rawValue.length; i++) {
+      if (rawValue[i] === '%' && i + 2 < rawValue.length) {
+        const hex = rawValue.substring(i + 1, i + 3);
+        const code = parseInt(hex, 16);
+        if (!isNaN(code)) {
+          bytes[byteLen++] = code;
+          i += 2;
+          continue;
+        }
+      }
+      bytes[byteLen++] = rawValue.charCodeAt(i);
+    }
+    const rawBytes = bytes.subarray(0, byteLen);
+
+    // 优先 UTF-8 解码
+    const utf8 = new TextDecoder('utf-8').decode(rawBytes);
+    if (!utf8.includes('�')) return utf8;
+
+    // 回退 GBK 解码
+    try {
+      const gbk = new TextDecoder('gbk').decode(rawBytes);
+      if (!gbk.includes('�')) return gbk;
+    } catch (_) { /* GBK 不可用则忽略 */ }
+
+    return utf8;
+  }
+  return '';
+}
+
 export function getPathname(url) {
   // 查找路径的起始位置（跳过协议和主机部分）
   let pathnameStart = url.indexOf('//') + 2;

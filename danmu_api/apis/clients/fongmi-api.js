@@ -1,5 +1,5 @@
 import { globals } from "../../configs/globals.js";
-import { jsonResponse } from "../../utils/http-util.js";
+import { jsonResponse, decodeRawQueryParam } from "../../utils/http-util.js";
 import { log } from "../../utils/log-util.js";
 import { simplized } from "../../utils/zh-util.js";
 import { convertChineseNumber, extractEpisodeTitle, extractEpisodeNumberFromTitle, normalizeSpaces } from "../../utils/common-util.js";
@@ -219,15 +219,18 @@ function buildFongmiApiBase(req) {
 
 /**
  * 解析 FongMi 的请求参数，兼容 GET、JSON POST、表单 POST。
+ * 优先从原始 URL 中解码参数（支持 GBK 编码回退），避免中文乱码。
  * @param {URL} url 请求 URL
  * @param {Request} req 请求对象
  * @returns {Promise<{name: string, episode: string}>} 标题和集数文本
  */
 async function parseFongmiRequestParams(url, req) {
   if (req.method === "GET") {
+    const rawName = decodeRawQueryParam(req.url, "name");
+    const rawEpisode = decodeRawQueryParam(req.url, "episode");
     return {
-      name: url.searchParams.get("name") || "",
-      episode: url.searchParams.get("episode") || ""
+      name: rawName || url.searchParams.get("name") || "",
+      episode: rawEpisode || url.searchParams.get("episode") || ""
     };
   }
 

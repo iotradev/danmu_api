@@ -1,5 +1,5 @@
 import { globals } from '../configs/globals.js';
-import { getPageTitle, jsonResponse, httpGet } from '../utils/http-util.js';
+import { getPageTitle, jsonResponse, httpGet, decodeRawQueryParam } from '../utils/http-util.js';
 import { log } from '../utils/log-util.js'
 import { simplized } from '../utils/zh-util.js';
 import { setRedisKey, updateRedisCaches } from "../utils/redis-util.js";
@@ -397,8 +397,8 @@ async function executeSourceHandlers(resultData, queryTitle, targetAnimesList, r
 }
 
 // Extracted function for GET /api/v2/search/anime
-export async function searchAnime(url, preferAnimeId = null, preferSource = null, detailStore = null, targetPlatform = null) {
-  let queryTitle = url.searchParams.get("keyword");
+export async function searchAnime(url, preferAnimeId = null, preferSource = null, detailStore = null, targetPlatform = null, rawUrl = null) {
+  let queryTitle = rawUrl ? (decodeRawQueryParam(rawUrl, "keyword") || url.searchParams.get("keyword")) : url.searchParams.get("keyword");
   let querySeason = url.searchParams.get("season");
   querySeason = querySeason ? parseInt(querySeason, 10) : null;
   let queryEpisode = url.searchParams.get("episode");
@@ -1500,8 +1500,8 @@ export async function matchAnime(url, req, clientIp) {
 }
 
 // Extracted function for GET /api/v2/search/episodes
-export async function searchEpisodes(url) {
-  let anime = url.searchParams.get("anime");
+export async function searchEpisodes(url, rawUrl = null) {
+  let anime = rawUrl ? (decodeRawQueryParam(rawUrl, "anime") || url.searchParams.get("anime")) : url.searchParams.get("anime");
   const episode = url.searchParams.get("episode") || "";
 
   // 如果启用了搜索关键字繁转简，则进行转换

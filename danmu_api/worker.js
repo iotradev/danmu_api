@@ -309,12 +309,12 @@ async function handleRequest(req, env, deployPlatform, clientIp, ctx) {
 
   // GET /api/v2/search/anime
   if (path === "/api/v2/search/anime" && method === "GET") {
-    return searchAnime(url);
+    return searchAnime(url, null, null, null, null, req.url);
   }
 
   // GET /api/v2/search/episodes
   if (path === "/api/v2/search/episodes" && method === "GET") {
-    return searchEpisodes(url);
+    return searchEpisodes(url, req.url);
   }
 
   // GET|POST /api/v2/fongmi/danmaku
