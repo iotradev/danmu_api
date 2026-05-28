@@ -3,8 +3,8 @@
   "outputDirectory": "./",
   "rewrites": [
     {
-      "source": "/*",
-      "destination": "/functions/index.js"
+      "source": "/:path*",
+      "destination": "/node-functions/index.js"
     }
   ]
 }
