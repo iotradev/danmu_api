@@ -555,9 +555,16 @@ async function startFileMatchDownload() {
     for (let index = 0; index < parsedFiles.length; index++) {
         const file = parsedFiles[index];
         try {
-            // 搜索动漫
-            const searchUrl = buildApiUrl('/api/v2/search/anime?keyword=' + encodeURIComponent(file.animeName));
-            addLog('搜索动漫: ' + file.animeName, 'info');
+            // 搜索动漫 - 优先使用中文名，避免英文名导致搜索超时
+            let searchKeyword = file.animeName;
+            // 如果包含中文，只使用中文部分
+            const chineseMatch = searchKeyword.match(/[\u4e00-\u9fa5]+/g);
+            if (chineseMatch && chineseMatch.length > 0) {
+                searchKeyword = chineseMatch.join('');
+            }
+            
+            const searchUrl = buildApiUrl('/api/v2/search/anime?keyword=' + encodeURIComponent(searchKeyword));
+            addLog('搜索动漫: ' + searchKeyword, 'info');
             const searchResp = await fetch(searchUrl);
             const searchData = await searchResp.json();
             
