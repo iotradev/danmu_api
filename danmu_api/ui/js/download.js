@@ -481,6 +481,14 @@ async function downloadAllDanmu() {
 // 文件匹配模式功能
 // =====================
 
+// 文件匹配状态
+const fileMatchState = {
+    searchResults: null,  // 搜索结果（包含所有源）
+    selectedSource: null, // 用户选择的源
+    allEpisodes: null,    // 所有集数信息
+    parsedFiles: null     // 解析的文件名
+};
+
 // 开始文件匹配下载
 async function startFileMatchDownload() {
     const textarea = document.getElementById('video-filenames-input');
@@ -527,9 +535,12 @@ async function startFileMatchDownload() {
             status: 'pending',
             animeId: null,
             episodeId: null,
-            matchInfo: ''
+            matchInfo: '',
+            searchResults: null
         };
     });
+    
+    fileMatchState.parsedFiles = parsedFiles;
     
     // 显示解析结果
     let html = '<h4>文件解析结果</h4>';
@@ -538,7 +549,7 @@ async function startFileMatchDownload() {
     });
     resultsDiv.innerHTML = html;
     
-    // 开始匹配
+    // 开始搜索
     statusDiv.textContent = '正在搜索匹配动漫...';
     
     // 获取唯一的动漫名进行搜索
@@ -549,99 +560,179 @@ async function startFileMatchDownload() {
         return;
     }
     
-    // 对每个文件进行匹配
-    let processedCount = 0;
+    // 搜索第一个动漫名（获取所有源的结果）
+    const firstFile = parsedFiles[0];
+    let searchKeyword = firstFile.animeName;
+    const chineseMatch = searchKeyword.match(/[\u4e00-\u9fa5]+/g);
+    if (chineseMatch && chineseMatch.length > 0) {
+        searchKeyword = chineseMatch.join('');
+    }
     
-    for (let index = 0; index < parsedFiles.length; index++) {
-        const file = parsedFiles[index];
-        try {
-            // 搜索动漫 - 优先使用中文名，避免英文名导致搜索超时
-            let searchKeyword = file.animeName;
-            // 如果包含中文，只使用中文部分
-            const chineseMatch = searchKeyword.match(/[\u4e00-\u9fa5]+/g);
-            if (chineseMatch && chineseMatch.length > 0) {
-                searchKeyword = chineseMatch.join('');
-            }
+    try {
+        const searchUrl = buildApiUrl('/api/v2/search/anime?keyword=' + encodeURIComponent(searchKeyword));
+        addLog('搜索动漫: ' + searchKeyword, 'info');
+        const searchResp = await fetch(searchUrl);
+        const searchData = await searchResp.json();
+        
+        if (searchData.success && searchData.animes && searchData.animes.length > 0) {
+            fileMatchState.searchResults = searchData.animes;
             
-            const searchUrl = buildApiUrl('/api/v2/search/anime?keyword=' + encodeURIComponent(searchKeyword));
-            addLog('搜索动漫: ' + searchKeyword, 'info');
-            const searchResp = await fetch(searchUrl);
-            const searchData = await searchResp.json();
+            // 显示源选择 UI
+            showSourceSelection(searchData.animes, parsedFiles, resultsDiv, statusDiv);
+        } else {
+            statusDiv.textContent = '未找到匹配的动漫';
+            parsedFiles.forEach(f => {
+                f.status = 'error';
+                f.matchInfo = '未找到动漫';
+            });
+            updateAllFileMatchItems(parsedFiles);
+        }
+    } catch (e) {
+        statusDiv.textContent = '搜索失败: ' + e.message;
+        addLog('搜索失败: ' + e.message, 'error');
+    }
+}
+
+// 显示源选择 UI
+function showSourceSelection(animes, parsedFiles, resultsDiv, statusDiv) {
+    statusDiv.textContent = '请选择弹幕源:';
+    
+    // 按源分组
+    const sourceGroups = {};
+    animes.forEach(anime => {
+        const source = anime.source || 'unknown';
+        if (!sourceGroups[source]) {
+            sourceGroups[source] = [];
+        }
+        sourceGroups[source].push(anime);
+    });
+    
+    let html = '<div style="margin: 15px 0; padding: 15px; background: #f5f5f5; border-radius: 8px;">';
+    html += '<h4 style="margin: 0 0 10px;">可用弹幕源</h4>';
+    html += '<div style="display: flex; flex-wrap: wrap; gap: 10px;">';
+    
+    Object.keys(sourceGroups).forEach((source, index) => {
+        const anime = sourceGroups[source][0];
+        const episodeCount = anime.episodeCount || '?';
+        html += '<button class="btn ' + (index === 0 ? 'btn-success' : 'btn-primary') + '" ' +
+                'onclick="selectFileMatchSource(\\'' + source + '\\', this)" ' +
+                'style="min-width: 120px;">' +
+                '<strong>' + source.toUpperCase() + '</strong><br>' +
+                '<small>' + episodeCount + '集</small>' +
+                '</button>';
+    });
+    
+    html += '</div>';
+    html += '<p style="margin: 10px 0 0; color: #666; font-size: 12px;">选择源后将自动匹配并显示详情</p>';
+    html += '</div>';
+    
+    // 添加详情占位符
+    html += '<div id="filematch-source-details"></div>';
+    
+    resultsDiv.innerHTML = html;
+    
+    // 默认选择第一个源
+    const firstSource = Object.keys(sourceGroups)[0];
+    if (firstSource) {
+        selectFileMatchSource(firstSource);
+    }
+}
+
+// 选择源
+async function selectFileMatchSource(source, btnElement) {
+    // 更新按钮状态
+    document.querySelectorAll('#filematch-results .btn').forEach(btn => {
+        btn.className = 'btn btn-primary';
+    });
+    if (btnElement) {
+        btnElement.className = 'btn btn-success';
+    } else {
+        const firstBtn = document.querySelector('#filematch-results .btn');
+        if (firstBtn) firstBtn.className = 'btn btn-success';
+    }
+    
+    fileMatchState.selectedSource = source;
+    
+    const statusDiv = document.getElementById('filematch-status');
+    const detailsDiv = document.getElementById('filematch-source-details');
+    
+    statusDiv.textContent = '正在获取 ' + source.toUpperCase() + ' 的剧集信息...';
+    
+    // 找到该源的动漫
+    const anime = fileMatchState.searchResults.find(a => (a.source || 'unknown') === source);
+    if (!anime) {
+        statusDiv.textContent = '未找到该源的动漫信息';
+        return;
+    }
+    
+    try {
+        // 获取剧集详情
+        const bangumiUrl = buildApiUrl('/api/v2/bangumi/' + anime.animeId);
+        const bangumiResp = await fetch(bangumiUrl);
+        const bangumiData = await bangumiResp.json();
+        
+        if (bangumiData.success && bangumiData.bangumi && bangumiData.bangumi.episodes) {
+            const episodes = bangumiData.bangumi.episodes;
+            fileMatchState.allEpisodes = episodes;
             
-            addLog('搜索结果: success=' + searchData.success + ', animes数量=' + (searchData.animes ? searchData.animes.length : 'null'), 'info');
-            
-            if (searchData.success && searchData.animes && searchData.animes.length > 0) {
-                // 取第一个匹配结果
-                const anime = searchData.animes[0];
-                file.animeId = anime.animeId;
-                
-                // 获取剧集详情
-                const bangumiUrl = buildApiUrl('/api/v2/bangumi/' + anime.animeId);
-                const bangumiResp = await fetch(bangumiUrl);
-                const bangumiData = await bangumiResp.json();
-                
-                addLog('剧集详情: success=' + bangumiData.success + ', has bangumi=' + !!bangumiData.bangumi + ', has episodes=' + !!(bangumiData.bangumi && bangumiData.bangumi.episodes), 'info');
-                
-                if (bangumiData.success && bangumiData.bangumi && bangumiData.bangumi.episodes) {
-                    const episodes = bangumiData.bangumi.episodes;
-                    addLog('剧集数量: ' + episodes.length + ', 目标集数: ' + file.episode, 'info');
-                    if (episodes.length > 0) {
-                        addLog('第一集数据: episodeNumber=' + episodes[0].episodeNumber + ' (type: ' + typeof episodes[0].episodeNumber + ')', 'info');
-                    }
-                    
-                    // 根据集数查找对应的 episodeId（episodeNumber 可能是字符串或数字）
-                    const targetEpisode = episodes.find(ep => parseInt(ep.episodeNumber) === file.episode);
-                    
-                    if (targetEpisode) {
-                        file.episodeId = targetEpisode.episodeId;
-                        file.status = 'success';
-                        file.matchInfo = anime.animeTitle + ' 第' + file.episode + '集';
-                    } else {
-                        file.status = 'error';
-                        file.matchInfo = '未找到第' + file.episode + '集';
-                    }
+            // 匹配所有文件
+            const parsedFiles = fileMatchState.parsedFiles;
+            parsedFiles.forEach(file => {
+                const targetEpisode = episodes.find(ep => parseInt(ep.episodeNumber) === file.episode);
+                if (targetEpisode) {
+                    file.animeId = anime.animeId;
+                    file.episodeId = targetEpisode.episodeId;
+                    file.status = 'success';
+                    file.matchInfo = anime.animeTitle + ' 第' + file.episode + '集';
                 } else {
                     file.status = 'error';
-                    file.matchInfo = '获取剧集信息失败';
+                    file.matchInfo = '未找到第' + file.episode + '集';
                 }
-            } else {
-                file.status = 'error';
-                file.matchInfo = '未找到动漫';
-            }
-        } catch (e) {
-            file.status = 'error';
-            file.matchInfo = '匹配失败: ' + e.message;
+            });
+            
+            // 更新 UI
+            updateAllFileMatchItems(parsedFiles);
+            
+            // 显示详情和下载按钮
+            showSourceDetails(anime, episodes, parsedFiles, detailsDiv, statusDiv);
+        } else {
+            statusDiv.textContent = '获取剧集信息失败';
         }
-        
-        // 更新进度
-        processedCount++;
-        const progress = (processedCount / parsedFiles.length * 100).toFixed(0);
-        progressFill.style.width = progress + '%';
-        statusDiv.textContent = '匹配进度: ' + processedCount + '/' + parsedFiles.length;
-        
-        // 更新单个文件的状态显示
-        updateFileMatchItemStatus(index, file);
-        
-        // 添加延迟避免请求过快
-        await new Promise(resolve => setTimeout(resolve, 200));
+    } catch (e) {
+        statusDiv.textContent = '获取剧集信息失败: ' + e.message;
+        addLog('获取剧集信息失败: ' + e.message, 'error');
     }
-    
-    // 保存匹配结果
-    downloadState.fileMatchResults = parsedFiles;
-    
-    // 显示最终结果
+}
+
+// 显示源详情和下载按钮
+function showSourceDetails(anime, episodes, parsedFiles, detailsDiv, statusDiv) {
     const successCount = parsedFiles.filter(f => f.status === 'success').length;
-    const errorCount = parsedFiles.filter(f => f.status === 'error').length;
+    const downloadAllEpisodes = document.getElementById('filematch-download-all-episodes')?.checked || false;
     
-    statusDiv.innerHTML = '匹配完成: <span style="color: #4CAF50;">成功 ' + successCount + '</span> / <span style="color: #f44336;">失败 ' + errorCount + '</span>';
+    let html = '<div style="margin: 15px 0; padding: 15px; background: #e8f5e9; border-radius: 8px;">';
+    html += '<h4 style="margin: 0 0 10px; color: #2e7d32;">匹配结果</h4>';
+    html += '<p><strong>动漫:</strong> ' + anime.animeTitle + '</p>';
+    html += '<p><strong>源:</strong> ' + (anime.source || 'unknown').toUpperCase() + '</p>';
+    html += '<p><strong>总集数:</strong> ' + episodes.length + '</p>';
+    html += '<p><strong>匹配成功:</strong> ' + successCount + ' 个文件</p>';
+    html += '</div>';
     
-    // 添加批量下载按钮
-    if (successCount > 0) {
-        resultsDiv.innerHTML += 
-            '<div style="margin-top: 20px;">' +
-                '<button class="btn btn-success" onclick="downloadFileMatchResults()" style="width: 100%;">下载匹配成功的弹幕 (' + successCount + ' 个)</button>' +
-            '</div>';
+    // 下载选项
+    html += '<div style="margin: 15px 0; padding: 15px; background: #fff3e0; border-radius: 8px;">';
+    html += '<h4 style="margin: 0 0 10px; color: #e65100;">下载选项</h4>';
+    
+    if (downloadAllEpisodes && episodes.length > 0) {
+        html += '<p>将下载全部 ' + episodes.length + ' 集弹幕</p>';
+        html += '<button class="btn btn-success" onclick="downloadAllEpisodesFromSource()" style="width: 100%;">下载全部集数弹幕</button>';
+    } else {
+        html += '<p>将下载匹配成功的 ' + successCount + ' 个弹幕文件</p>';
+        html += '<button class="btn btn-success" onclick="downloadFileMatchResults()" style="width: 100%;">下载匹配的弹幕</button>';
     }
+    
+    html += '</div>';
+    
+    detailsDiv.innerHTML = html;
+    statusDiv.innerHTML = '匹配完成: <span style="color: #4CAF50;">成功 ' + successCount + '</span> / <span style="color: #f44336;">失败 ' + (parsedFiles.length - successCount) + '</span>';
 }
 
 // 创建文件匹配项的 HTML
@@ -656,6 +747,13 @@ function createFileMatchItemHtml(file, index) {
             (file.status === 'pending' ? '等待匹配...' : file.matchInfo) + 
         '</span>' +
     '</div>';
+}
+
+// 更新所有文件匹配项状态
+function updateAllFileMatchItems(parsedFiles) {
+    parsedFiles.forEach((file, index) => {
+        updateFileMatchItemStatus(index, file);
+    });
 }
 
 // 更新文件匹配项状态
@@ -700,6 +798,11 @@ async function downloadFileMatchResults() {
             if (format === 'xml') {
                 content = await resp.text();
                 mimeType = 'application/xml';
+            } else if (format === 'ass') {
+                // ASS 格式需要转换
+                const data = await resp.json();
+                content = convertDanmuToAss(data, file.original);
+                mimeType = 'text/plain';
             } else {
                 const data = await resp.json();
                 content = JSON.stringify(data, null, 2);
@@ -729,6 +832,171 @@ async function downloadFileMatchResults() {
     
     customAlert('文件匹配下载完成: 成功 ' + successCount + ' 个, 失败 ' + failCount + ' 个');
     addLog('文件匹配下载完成: 成功 ' + successCount + ', 失败 ' + failCount, 'success');
+}
+
+// 下载全部集数弹幕
+async function downloadAllEpisodesFromSource() {
+    const format = document.querySelector('input[name="filematch-format"]:checked')?.value || 'xml';
+    const episodes = fileMatchState.allEpisodes;
+    const anime = fileMatchState.searchResults.find(a => (a.source || 'unknown') === fileMatchState.selectedSource);
+    const parsedFiles = fileMatchState.parsedFiles;
+    
+    if (!episodes || episodes.length === 0) {
+        customAlert('没有可下载的剧集');
+        return;
+    }
+    
+    // 获取第一个文件名作为基础
+    const baseFilename = parsedFiles[0]?.original || 'danmu';
+    const baseName = baseFilename.replace(/S\d+E\d+.*$/, '').replace(/\.[^.]+$/, '');
+    
+    addLog('开始下载全部 ' + episodes.length + ' 集弹幕', 'info');
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (let i = 0; i < episodes.length; i++) {
+        const episode = episodes[i];
+        const episodeNum = parseInt(episode.episodeNumber);
+        const paddedNum = String(episodeNum).padStart(2, '0');
+        
+        try {
+            // 生成文件名：基础名 + S01E01 + 扩展名
+            const danmuFilename = baseName + 'S01E' + paddedNum;
+            
+            const resp = await fetch(buildApiUrl('/api/v2/comment/' + episode.episodeId + '?format=' + format));
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+            let content, mimeType, fileExt;
+            if (format === 'xml') {
+                content = await resp.text();
+                mimeType = 'application/xml';
+                fileExt = 'xml';
+            } else if (format === 'ass') {
+                const data = await resp.json();
+                content = convertDanmuToAss(data, danmuFilename);
+                mimeType = 'text/plain';
+                fileExt = 'ass';
+            } else {
+                const data = await resp.json();
+                content = JSON.stringify(data, null, 2);
+                mimeType = 'application/json';
+                fileExt = 'json';
+            }
+
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = danmuFilename + '.' + fileExt;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            successCount++;
+            addLog('下载成功: ' + danmuFilename, 'success');
+            
+            // 添加延迟避免请求过快
+            await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (e) {
+            failCount++;
+            addLog('下载失败 第' + episodeNum + '集: ' + e.message, 'error');
+        }
+    }
+    
+    customAlert('全部集数下载完成: 成功 ' + successCount + ' 个, 失败 ' + failCount + ' 个');
+    addLog('全部集数下载完成: 成功 ' + successCount + ', 失败 ' + failCount, 'success');
+}
+
+// 将弹幕转换为 ASS 字幕格式
+function convertDanmuToAss(danmuData, title) {
+    const comments = danmuData.comments || [];
+    
+    // ASS 文件头
+    let ass = '[Script Info]\\n';
+    ass += 'Title: ' + (title || 'Danmu') + '\\n';
+    ass += 'ScriptType: v4.00+\\n';
+    ass += 'WrapStyle: 0\\n';
+    ass += 'ScaledBorderAndShadow: yes\\n';
+    ass += 'YCbCr Matrix: TV.709\\n';
+    ass += 'PlayResX: 1920\\n';
+    ass += 'PlayResY: 1080\\n\\n';
+    
+    ass += '[V4+ Styles]\\n';
+    ass += 'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\\n';
+    ass += 'Style: Default,Microsoft YaHei,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1\\n';
+    ass += 'Style: Top,Microsoft YaHei,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,8,10,10,10,1\\n';
+    ass += 'Style: Bottom,Microsoft YaHei,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1\\n\\n';
+    
+    ass += '[Events]\\n';
+    ass += 'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\\n';
+    
+    // 转换每条弹幕
+    comments.forEach(comment => {
+        const time = comment.t || 0;
+        const text = comment.m || '';
+        const p = comment.p || '';
+        
+        // 解析弹幕类型
+        let style = 'Default';
+        const pParts = p.split(',');
+        if (pParts.length > 1) {
+            const mode = parseInt(pParts[1]);
+            if (mode === 5) style = 'Top';
+            else if (mode === 4) style = 'Bottom';
+        }
+        
+        // 解析颜色
+        let color = '&H00FFFFFF';
+        if (pParts.length > 2) {
+            const colorDec = parseInt(pParts[2]);
+            if (!isNaN(colorDec)) {
+                const r = colorDec & 0xFF;
+                const g = (colorDec >> 8) & 0xFF;
+                const b = (colorDec >> 16) & 0xFF;
+                color = '&H00' + b.toString(16).padStart(2, '0') + g.toString(16).padStart(2, '0') + r.toString(16).padStart(2, '0');
+            }
+        }
+        
+        // 转换时间格式
+        const hours = Math.floor(time / 3600);
+        const minutes = Math.floor((time % 3600) / 60);
+        const seconds = Math.floor(time % 60);
+        const centiseconds = Math.floor((time % 1) * 100);
+        
+        const startTime = hours + ':' + 
+            String(minutes).padStart(2, '0') + ':' + 
+            String(seconds).padStart(2, '0') + '.' + 
+            String(centiseconds).padStart(2, '0');
+        
+        // 滚动弹幕持续 8 秒，固定弹幕持续 5 秒
+        const duration = (style === 'Default') ? 8 : 5;
+        const endTimeSeconds = time + duration;
+        const endHours = Math.floor(endTimeSeconds / 3600);
+        const endMinutes = Math.floor((endTimeSeconds % 3600) / 60);
+        const endSecs = Math.floor(endTimeSeconds % 60);
+        const endCentiseconds = Math.floor((endTimeSeconds % 1) * 100);
+        
+        const endTime = endHours + ':' + 
+            String(endMinutes).padStart(2, '0') + ':' + 
+            String(endSecs).padStart(2, '0') + '.' + 
+            String(endCentiseconds).padStart(2, '0');
+        
+        // 转义文本中的特殊字符
+        const escapedText = text.replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}');
+        
+        // 生成 ASS 行
+        let effect = '';
+        if (style === 'Default') {
+            // 滚动弹幕：从右向左滚动
+            effect = '\\move(1920,0,0,0)';
+        }
+        
+        ass += 'Dialogue: 0,' + startTime + ',' + endTime + ',' + style + ',,0,0,0,' + effect + ',' + escapedText + '\\n';
+    });
+    
+    return ass;
 }
 
 `;

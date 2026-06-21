@@ -199,23 +199,44 @@ export const HTML_TEMPLATE = /* html */ `
                     
                     <div class="form-group" style="margin-bottom: 15px;">
                         <label>视频文件名（每行一个，支持批量）</label>
-                        <textarea id="video-filenames-input" rows="8" placeholder="粘贴视频文件名，每行一个，例如：&#10;低智商犯罪.Born.with.Luck.S01E01.2026.2160p.IQ.WEB-DL.H265.DDP5.1-ColorWEB.mkv&#10;低智商犯罪.Born.with.Luck.S01E02.2026.2160p.IQ.WEB-DL.H265.DDP5.1-ColorWEB.mkv&#10;低智商犯罪.Born.with.Luck.S01E03.2026.2160p.IQ.WEB-DL.H265.DDP5.1-ColorWEB.mkv" style="width: 100%; padding: 10px; font-family: monospace; font-size: 13px;"></textarea>
+                        <textarea id="video-filenames-input" rows="6" placeholder="粘贴视频文件名，每行一个，例如：&#10;低智商犯罪.Born.with.Luck.S01E01.2026.2160p.IQ.WEB-DL.H265.DDP5.1-ColorWEB.mkv&#10;低智商犯罪.Born.with.Luck.S01E02.2026.2160p.IQ.WEB-DL.H265.DDP5.1-ColorWEB.mkv" style="width: 100%; padding: 10px; font-family: monospace; font-size: 13px;"></textarea>
                     </div>
                     
                     <div class="form-group" style="margin-bottom: 15px;">
                         <label>下载格式</label>
-                        <div style="margin-top: 8px;">
-                            <label style="margin-right: 20px; cursor: pointer;">
-                                <input type="radio" name="filematch-format" value="xml" checked> XML (推荐，PotPlayer兼容)
+                        <div style="margin-top: 8px; display: flex; gap: 15px; flex-wrap: wrap;">
+                            <label style="cursor: pointer;">
+                                <input type="radio" name="filematch-format" value="xml" checked> XML (B站弹幕格式)
                             </label>
                             <label style="cursor: pointer;">
-                                <input type="radio" name="filematch-format" value="json"> JSON
+                                <input type="radio" name="filematch-format" value="json"> JSON (弹弹play格式)
+                            </label>
+                            <label style="cursor: pointer;">
+                                <input type="radio" name="filematch-format" value="ass"> ASS (字幕格式，PotPlayer兼容)
                             </label>
                         </div>
                     </div>
                     
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label>弹幕源选择</label>
+                        <div id="filematch-source-info" style="margin-top: 8px; color: #666; font-size: 13px;">
+                            匹配成功后可选择从哪个源下载
+                        </div>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label>批量选项</label>
+                        <div style="margin-top: 8px;">
+                            <label style="cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="filematch-download-all-episodes" checked>
+                                <span>同时下载该剧的所有集数弹幕</span>
+                            </label>
+                            <p style="color: #999; font-size: 12px; margin: 5px 0 0 24px;">勾选后会自动下载匹配到的动漫的全部集数，文件名自动编号</p>
+                        </div>
+                    </div>
+                    
                     <button class="btn btn-success" id="filematch-start-btn" onclick="startFileMatchDownload()" style="width: 100%;">
-                        开始匹配并下载
+                        开始匹配
                     </button>
                     
                     <div id="filematch-progress" style="display: none; margin-top: 20px;">
