@@ -557,10 +557,13 @@ async function startFileMatchDownload() {
         try {
             // 搜索动漫
             const searchUrl = buildApiUrl('/api/v2/search/anime?keyword=' + encodeURIComponent(file.animeName));
+            addLog('搜索动漫: ' + file.animeName + ' -> ' + searchUrl, 'info');
             const searchResp = await fetch(searchUrl);
             const searchData = await searchResp.json();
             
-            if (searchData.success && searchData.animes.length > 0) {
+            addLog('搜索结果: ' + JSON.stringify(searchData).substring(0, 200), 'info');
+            
+            if (searchData.success && searchData.animes && searchData.animes.length > 0) {
                 // 取第一个匹配结果
                 const anime = searchData.animes[0];
                 file.animeId = anime.animeId;
