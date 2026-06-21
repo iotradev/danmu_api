@@ -6,7 +6,8 @@ export const downloadJsContent = /* javascript */ `
 const downloadState = {
     currentAnimeId: null,
     currentAnimeTitle: '',
-    episodes: []
+    episodes: [],
+    fileMatchResults: []
 };
 
 // 初始化弹幕下载界面
@@ -20,6 +21,118 @@ function initDownloadInterface() {
         });
     }
 }
+
+// 切换下载模式
+function switchDownloadMode(mode, event) {
+    // 更新标签状态
+    document.querySelectorAll('.download-mode-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    // 切换显示
+    document.getElementById('download-normal-mode').style.display = mode === 'normal' ? 'block' : 'none';
+    document.getElementById('download-filematch-mode').style.display = mode === 'filematch' ? 'block' : 'none';
+}
+
+// =====================
+// 文件名解析函数（前端版本）
+// =====================
+
+// 从文件名中提取季数
+function extractSeasonFromFilename(filename) {
+    // 移除文件扩展名
+    const nameWithoutExt = filename.replace(/\\.[^.]+$/, '');
+    
+    // 1. 明确季数标识：第X季/期/部
+    const explicitMatch = nameWithoutExt.match(/第\\s*([0-9一二三四五六七八九十]+)\\s*[季期部]/);
+    if (explicitMatch) {
+        return convertChineseNumber(explicitMatch[1]);
+    }
+    
+    // 2. S01/S1/Season 1 格式
+    const seasonMatch = nameWithoutExt.match(/(?:S(?:eason)?|Season)\\s*(\\d+)/i);
+    if (seasonMatch) {
+        return parseInt(seasonMatch[1], 10);
+    }
+    
+    // 3. Part 2 格式
+    const partMatch = nameWithoutExt.match(/Part\\s*(\\d+)/i);
+    if (partMatch) {
+        return parseInt(partMatch[1], 10);
+    }
+    
+    return null;
+}
+
+// 从文件名中提取集数
+function extractEpisodeFromFilename(filename) {
+    // 移除文件扩展名
+    const nameWithoutExt = filename.replace(/\\.[^.]+$/, '');
+    
+    // 1. E01/E1/EP01/EP1 格式（最常见）
+    const epMatch = nameWithoutExt.match(/[Ee][Pp]?(\\d{1,3})/);
+    if (epMatch) {
+        return parseInt(epMatch[1], 10);
+    }
+    
+    // 2. 第X集 格式
+    const chineseMatch = nameWithoutExt.match(/第(\\d+)集/);
+    if (chineseMatch) {
+        return parseInt(chineseMatch[1], 10);
+    }
+    
+    return null;
+}
+
+// 从文件名中提取动漫名称（简化版）
+function extractAnimeNameFromFilename(filename) {
+    // 移除文件扩展名
+    let name = filename.replace(/\\.[^.]+$/, '');
+    
+    // 移除年份及之后的内容（如 2026.2160p...）
+    name = name.replace(/\\.\\d{4}\\..*$/, '');
+    
+    // 移除季集信息（S01E01 等）
+    name = name.replace(/[\\.\\s]?[Ss]\\d+[Ee]\\d+.*$/, '');
+    name = name.replace(/[\\.\\s]?[Ee][Pp]?\\d+.*$/, '');
+    name = name.replace(/[\\.\\s]?第\\d+集.*$/, '');
+    
+    // 移除常见的质量/编码信息
+    name = name.replace(/[\\.\\s]?(2160p|1080p|720p|480p|4K|WEB-DL|BluRay|REMUX|x264|x265|H264|H265|HEVC|AAC|DTS|DDP?\\d*\\.?\\d*).*$/i, '');
+    
+    // 移除中括号内容
+    name = name.replace(/\\[.*?\\]/g, '');
+    
+    // 清理分隔符
+    name = name.replace(/[._]/g, ' ').trim();
+    
+    // 移除末尾的空格和点
+    name = name.replace(/[.\\s]+$/, '');
+    
+    return name;
+}
+
+// 中文数字转阿拉伯数字
+function convertChineseNumber(str) {
+    const chineseNumbers = {
+        '一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
+        '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
+        '壹': 1, '贰': 2, '叁': 3, '肆': 4, '伍': 5,
+        '陆': 6, '柒': 7, '捌': 8, '玖': 9, '拾': 10
+    };
+    
+    if (chineseNumbers[str]) {
+        return chineseNumbers[str];
+    }
+    
+    const num = parseInt(str, 10);
+    return isNaN(num) ? null : num;
+}
+
+// =====================
+// 普通模式功能
+// =====================
 
 // 搜索动漫用于下载
 function searchAnimeForDownload() {
@@ -216,9 +329,9 @@ function getSelectedFormat() {
 }
 
 // 下载单个弹幕文件
-async function downloadSingleDanmu(episodeId, episodeTitle) {
-    const format = getSelectedFormat();
-    const safeTitle = (downloadState.currentAnimeTitle + '_' + episodeTitle).replace(/[\\/:*?"<>|]/g, '_');
+async function downloadSingleDanmu(episodeId, episodeTitle, customFilename) {
+    const format = customFilename ? (document.querySelector('input[name="filematch-format"]:checked')?.value || 'xml') : getSelectedFormat();
+    const safeTitle = customFilename || (downloadState.currentAnimeTitle + '_' + episodeTitle).replace(/[\\\\/:*?"<>|]/g, '_');
     
     addLog('下载弹幕: ' + episodeTitle + ' (' + format.toUpperCase() + ')', 'info');
     
@@ -273,7 +386,7 @@ async function downloadSelectedDanmu() {
         const episodeNumber = cb.dataset.episodeNumber;
         const episode = downloadState.episodes.find(ep => ep.episodeId == episodeId);
         const episodeTitle = episode ? (episode.episodeTitle || '第' + episodeNumber + '集') : '第' + episodeNumber + '集';
-        const safeTitle = (downloadState.currentAnimeTitle + '_' + episodeTitle).replace(/[\\/:*?"<>|]/g, '_');
+        const safeTitle = (downloadState.currentAnimeTitle + '_' + episodeTitle).replace(/[\\\\/:*?"<>|]/g, '_');
         
         try {
             const resp = await fetch(buildApiUrl('/api/v2/comment/' + episodeId + '?format=' + format));
@@ -300,7 +413,6 @@ async function downloadSelectedDanmu() {
             URL.revokeObjectURL(url);
             
             successCount++;
-            // 添加延迟避免请求过快
             await new Promise(resolve => setTimeout(resolve, 300));
         } catch (e) {
             failCount++;
@@ -327,7 +439,7 @@ async function downloadAllDanmu() {
     
     for (const episode of downloadState.episodes) {
         const episodeTitle = episode.episodeTitle || '第' + episode.episodeNumber + '集';
-        const safeTitle = (downloadState.currentAnimeTitle + '_' + episodeTitle).replace(/[\\/:*?"<>|]/g, '_');
+        const safeTitle = (downloadState.currentAnimeTitle + '_' + episodeTitle).replace(/[\\\\/:*?"<>|]/g, '_');
         
         try {
             const resp = await fetch(buildApiUrl('/api/v2/comment/' + episode.episodeId + '?format=' + format));
@@ -354,7 +466,6 @@ async function downloadAllDanmu() {
             URL.revokeObjectURL(url);
             
             successCount++;
-            // 添加延迟避免请求过快
             await new Promise(resolve => setTimeout(resolve, 300));
         } catch (e) {
             failCount++;
@@ -364,5 +475,250 @@ async function downloadAllDanmu() {
     
     customAlert('全部下载完成: 成功 ' + successCount + ' 个, 失败 ' + failCount + ' 个');
     addLog('全部下载完成: 成功 ' + successCount + ', 失败 ' + failCount, 'success');
+}
+
+// =====================
+// 文件匹配模式功能
+// =====================
+
+// 开始文件匹配下载
+async function startFileMatchDownload() {
+    const textarea = document.getElementById('video-filenames-input');
+    const input = textarea.value.trim();
+    
+    if (!input) {
+        customAlert('请输入视频文件名');
+        return;
+    }
+    
+    // 解析输入的文件名
+    const filenames = input.split('\\n')
+        .map(f => f.trim())
+        .filter(f => f.length > 0);
+    
+    if (filenames.length === 0) {
+        customAlert('未检测到有效的文件名');
+        return;
+    }
+    
+    // 显示进度区域
+    const progressDiv = document.getElementById('filematch-progress');
+    progressDiv.style.display = 'block';
+    
+    const statusDiv = document.getElementById('filematch-status');
+    const resultsDiv = document.getElementById('filematch-results');
+    const progressFill = document.getElementById('filematch-progress-fill');
+    
+    statusDiv.textContent = '正在解析文件名...';
+    resultsDiv.innerHTML = '';
+    progressFill.style.width = '0%';
+    
+    // 解析每个文件名
+    const parsedFiles = filenames.map(filename => {
+        const season = extractSeasonFromFilename(filename);
+        const episode = extractEpisodeFromFilename(filename);
+        const animeName = extractAnimeNameFromFilename(filename);
+        
+        return {
+            original: filename,
+            animeName,
+            season,
+            episode,
+            status: 'pending',
+            animeId: null,
+            episodeId: null,
+            matchInfo: ''
+        };
+    });
+    
+    // 显示解析结果
+    let html = '<h4>文件解析结果</h4>';
+    parsedFiles.forEach((file, index) => {
+        html += createFileMatchItemHtml(file, index);
+    });
+    resultsDiv.innerHTML = html;
+    
+    // 开始匹配
+    statusDiv.textContent = '正在搜索匹配动漫...';
+    
+    // 获取唯一的动漫名进行搜索
+    const uniqueAnimeNames = [...new Set(parsedFiles.map(f => f.animeName).filter(n => n))];
+    
+    if (uniqueAnimeNames.length === 0) {
+        statusDiv.textContent = '无法从文件名中提取动漫名称';
+        return;
+    }
+    
+    // 对每个文件进行匹配
+    let processedCount = 0;
+    
+    for (const file of parsedFiles) {
+        try {
+            // 搜索动漫
+            const searchUrl = buildApiUrl('/api/v2/search/anime?keyword=' + encodeURIComponent(file.animeName));
+            const searchResp = await fetch(searchUrl);
+            const searchData = await searchResp.json();
+            
+            if (searchData.success && searchData.animes.length > 0) {
+                // 取第一个匹配结果
+                const anime = searchData.animes[0];
+                file.animeId = anime.animeId;
+                
+                // 获取剧集详情
+                const bangumiUrl = buildApiUrl('/api/v2/bangumi/' + anime.animeId);
+                const bangumiResp = await fetch(bangumiUrl);
+                const bangumiData = await bangumiResp.json();
+                
+                if (bangumiData.success && bangumiData.bangumi && bangumiData.bangumi.episodes) {
+                    // 根据集数查找对应的 episodeId
+                    const targetEpisode = bangumiData.bangumi.episodes.find(ep => ep.episodeNumber === file.episode);
+                    
+                    if (targetEpisode) {
+                        file.episodeId = targetEpisode.episodeId;
+                        file.status = 'success';
+                        file.matchInfo = anime.animeTitle + ' 第' + file.episode + '集';
+                    } else {
+                        file.status = 'error';
+                        file.matchInfo = '未找到第' + file.episode + '集';
+                    }
+                } else {
+                    file.status = 'error';
+                    file.matchInfo = '获取剧集信息失败';
+                }
+            } else {
+                file.status = 'error';
+                file.matchInfo = '未找到动漫';
+            }
+        } catch (e) {
+            file.status = 'error';
+            file.matchInfo = '匹配失败: ' + e.message;
+        }
+        
+        // 更新进度
+        processedCount++;
+        const progress = (processedCount / parsedFiles.length * 100).toFixed(0);
+        progressFill.style.width = progress + '%';
+        statusDiv.textContent = '匹配进度: ' + processedCount + '/' + parsedFiles.length;
+        
+        // 更新单个文件的状态显示
+        updateFileMatchItemStatus(index, file);
+        
+        // 添加延迟避免请求过快
+        await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+    // 保存匹配结果
+    downloadState.fileMatchResults = parsedFiles;
+    
+    // 显示最终结果
+    const successCount = parsedFiles.filter(f => f.status === 'success').length;
+    const errorCount = parsedFiles.filter(f => f.status === 'error').length;
+    
+    statusDiv.innerHTML = '匹配完成: <span style="color: #4CAF50;">成功 ' + successCount + '</span> / <span style="color: #f44336;">失败 ' + errorCount + '</span>';
+    
+    // 添加批量下载按钮
+    if (successCount > 0) {
+        resultsDiv.innerHTML += 
+            '<div style="margin-top: 20px;">' +
+                '<button class="btn btn-success" onclick="downloadFileMatchResults()" style="width: 100%;">下载匹配成功的弹幕 (' + successCount + ' 个)</button>' +
+            '</div>';
+    }
+}
+
+// 创建文件匹配项的 HTML
+function createFileMatchItemHtml(file, index) {
+    const statusIcon = file.status === 'success' ? '✅' : file.status === 'error' ? '❌' : '⏳';
+    const statusClass = file.status === 'success' ? 'success' : file.status === 'error' ? 'error' : 'pending';
+    
+    return '<div class="filematch-item ' + statusClass + '" id="filematch-item-' + index + '">' +
+        '<span class="filematch-status-icon">' + statusIcon + '</span>' +
+        '<span class="filematch-video-name">' + escapeHtml(file.original) + '</span>' +
+        '<span class="filematch-match-info" id="filematch-info-' + index + '">' + 
+            (file.status === 'pending' ? '等待匹配...' : file.matchInfo) + 
+        '</span>' +
+    '</div>';
+}
+
+// 更新文件匹配项状态
+function updateFileMatchItemStatus(index, file) {
+    const item = document.getElementById('filematch-item-' + index);
+    const info = document.getElementById('filematch-info-' + index);
+    
+    if (item && info) {
+        const statusIcon = file.status === 'success' ? '✅' : '❌';
+        const statusClass = file.status === 'success' ? 'success' : 'error';
+        
+        item.className = 'filematch-item ' + statusClass;
+        item.querySelector('.filematch-status-icon').textContent = statusIcon;
+        info.textContent = file.matchInfo;
+    }
+}
+
+// 下载文件匹配结果
+async function downloadFileMatchResults() {
+    const format = document.querySelector('input[name="filematch-format"]:checked')?.value || 'xml';
+    const successFiles = downloadState.fileMatchResults.filter(f => f.status === 'success');
+    
+    if (successFiles.length === 0) {
+        customAlert('没有可下载的匹配结果');
+        return;
+    }
+    
+    addLog('开始下载 ' + successFiles.length + ' 个弹幕文件', 'info');
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const file of successFiles) {
+        try {
+            // 生成与视频文件名匹配的弹幕文件名
+            const danmuFilename = file.original.replace(/\\.[^.]+$/, '');
+            
+            const resp = await fetch(buildApiUrl('/api/v2/comment/' + file.episodeId + '?format=' + format));
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+            let content, mimeType;
+            if (format === 'xml') {
+                content = await resp.text();
+                mimeType = 'application/xml';
+            } else {
+                const data = await resp.json();
+                content = JSON.stringify(data, null, 2);
+                mimeType = 'application/json';
+            }
+
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = danmuFilename + '.' + format;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            successCount++;
+            addLog('下载成功: ' + danmuFilename, 'success');
+            
+            // 添加延迟避免请求过快
+            await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (e) {
+            failCount++;
+            addLog('下载失败 ' + file.original + ': ' + e.message, 'error');
+        }
+    }
+    
+    customAlert('文件匹配下载完成: 成功 ' + successCount + ' 个, 失败 ' + failCount + ' 个');
+    addLog('文件匹配下载完成: 成功 ' + successCount + ', 失败 ' + failCount, 'success');
+}
+
+// HTML 转义
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#039;');
 }
 `;

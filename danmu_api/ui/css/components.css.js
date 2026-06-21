@@ -1222,6 +1222,87 @@ export const componentsCssContent = /* css */ `
     display: block;
 }
 
+/* 下载模式切换 */
+.download-mode-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.download-mode-tab {
+    padding: 10px 24px;
+    background: #f0f0f0;
+    border: 2px solid transparent;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s;
+    color: #555;
+}
+
+.download-mode-tab:hover {
+    background: #e0e0e0;
+}
+
+.download-mode-tab.active {
+    background: #4CAF50;
+    color: white;
+    border-color: #4CAF50;
+}
+
+/* 文件匹配结果 */
+.filematch-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    gap: 12px;
+}
+
+.filematch-item.success {
+    background: #e8f5e9;
+    border-left: 4px solid #4CAF50;
+}
+
+.filematch-item.error {
+    background: #ffebee;
+    border-left: 4px solid #f44336;
+}
+
+.filematch-item.pending {
+    background: #fff3e0;
+    border-left: 4px solid #ff9800;
+}
+
+.filematch-status-icon {
+    font-size: 18px;
+    min-width: 24px;
+    text-align: center;
+}
+
+.filematch-video-name {
+    flex: 1;
+    font-family: monospace;
+    font-size: 13px;
+    color: #333;
+    word-break: break-all;
+}
+
+.filematch-match-info {
+    font-size: 12px;
+    color: #666;
+    min-width: 150px;
+    text-align: right;
+}
+
+.filematch-download-btn {
+    padding: 4px 12px;
+    font-size: 12px;
+}
+
 /* 弹幕统计卡片 */
 .danmu-stats {
     margin-bottom: 15px;

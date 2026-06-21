@@ -168,17 +168,65 @@ export const HTML_TEMPLATE = /* html */ `
             <div class="section" id="download-section">
                 <h2>弹幕下载</h2>
                 <p style="color: #666; margin-bottom: 15px;">搜索动漫并下载弹幕文件，支持JSON和XML格式，可单集下载或批量下载</p>
-                <div class="download-controls" style="margin-bottom: 20px;">
-                    <div class="form-group" style="margin-bottom: 15px;">
-                        <label>搜索关键字</label>
-                        <div style="display: flex; gap: 10px; margin-top: 5px;">
-                            <input type="text" id="download-search-keyword" placeholder="请输入动漫名称" style="flex: 1;">
-                            <button class="btn btn-primary" id="download-search-btn" onclick="searchAnimeForDownload()">搜索</button>
+                
+                <!-- 模式切换 -->
+                <div class="download-mode-tabs" style="margin-bottom: 20px;">
+                    <button class="download-mode-tab active" onclick="switchDownloadMode('normal', event)">普通模式</button>
+                    <button class="download-mode-tab" onclick="switchDownloadMode('filematch', event)">文件匹配模式</button>
+                </div>
+
+                <!-- 普通模式 -->
+                <div id="download-normal-mode">
+                    <div class="download-controls" style="margin-bottom: 20px;">
+                        <div class="form-group" style="margin-bottom: 15px;">
+                            <label>搜索关键字</label>
+                            <div style="display: flex; gap: 10px; margin-top: 5px;">
+                                <input type="text" id="download-search-keyword" placeholder="请输入动漫名称" style="flex: 1;">
+                                <button class="btn btn-primary" id="download-search-btn" onclick="searchAnimeForDownload()">搜索</button>
+                            </div>
                         </div>
                     </div>
+                    <div id="download-anime-list" class="anime-list" style="display: none;"></div>
+                    <div id="download-episode-list" class="episode-list" style="display: none; margin-top: 20px;"></div>
                 </div>
-                <div id="download-anime-list" class="anime-list" style="display: none;"></div>
-                <div id="download-episode-list" class="episode-list" style="display: none; margin-top: 20px;"></div>
+
+                <!-- 文件匹配模式 -->
+                <div id="download-filematch-mode" style="display: none;">
+                    <div style="background: #e8f5e9; padding: 15px; border-radius: 12px; margin-bottom: 20px;">
+                        <h3 style="margin: 0 0 10px; color: #2e7d32;">视频文件名匹配模式</h3>
+                        <p style="color: #666; margin: 0; font-size: 14px;">粘贴视频文件名，自动解析动漫名和集数，下载的弹幕文件名将与视频文件名完全匹配</p>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label>视频文件名（每行一个，支持批量）</label>
+                        <textarea id="video-filenames-input" rows="8" placeholder="粘贴视频文件名，每行一个，例如：&#10;低智商犯罪.Born.with.Luck.S01E01.2026.2160p.IQ.WEB-DL.H265.DDP5.1-ColorWEB.mkv&#10;低智商犯罪.Born.with.Luck.S01E02.2026.2160p.IQ.WEB-DL.H265.DDP5.1-ColorWEB.mkv&#10;低智商犯罪.Born.with.Luck.S01E03.2026.2160p.IQ.WEB-DL.H265.DDP5.1-ColorWEB.mkv" style="width: 100%; padding: 10px; font-family: monospace; font-size: 13px;"></textarea>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label>下载格式</label>
+                        <div style="margin-top: 8px;">
+                            <label style="margin-right: 20px; cursor: pointer;">
+                                <input type="radio" name="filematch-format" value="xml" checked> XML (推荐，PotPlayer兼容)
+                            </label>
+                            <label style="cursor: pointer;">
+                                <input type="radio" name="filematch-format" value="json"> JSON
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-success" id="filematch-start-btn" onclick="startFileMatchDownload()" style="width: 100%;">
+                        开始匹配并下载
+                    </button>
+                    
+                    <div id="filematch-progress" style="display: none; margin-top: 20px;">
+                        <h3>匹配进度</h3>
+                        <div id="filematch-progress-bar" style="background: #e0e0e0; border-radius: 8px; height: 24px; margin: 10px 0;">
+                            <div id="filematch-progress-fill" style="background: #4CAF50; height: 100%; border-radius: 8px; width: 0%; transition: width 0.3s;"></div>
+                        </div>
+                        <div id="filematch-status" style="color: #666; margin-bottom: 10px;"></div>
+                        <div id="filematch-results"></div>
+                    </div>
+                </div>
             </div>
 
             <!-- 推送弹幕 -->
