@@ -43,12 +43,22 @@ export function handleConfig(hasPermission = false) {
     const varConfig = envVarConfig[key] || { category: 'system', type: 'text', description: '未分类配置项' };
     const category = varConfig.category || 'system';
     
+    // 获取值，确保正确处理数组和对象类型
+    let value = previewEnvVars[key];
+    let type = varConfig.type || 'text';
+    
+    // 如果值是对象且包含 value/type 字段（新格式）
+    if (value && typeof value === 'object' && !Array.isArray(value) && value.value !== undefined) {
+      type = value.type || type;
+      value = value.value;
+    }
+    
     categorizedVars[category].push({
       key: key,
-      value: previewEnvVars[key].value || previewEnvVars[key], // 如果是新格式则取value字段，否则直接使用原值
-      type: previewEnvVars[key].type || varConfig.type || 'text', // 如果是新格式则取type字段，否则使用配置中的type或默认text
+      value: value,
+      type: type,
       description: varConfig.description || '无描述',
-      options: previewEnvVars[key].options || varConfig.options // 如果是新格式则取options字段
+      options: varConfig.options // 仅对 select 和 multi-select 类型有效
     });
   });
   
