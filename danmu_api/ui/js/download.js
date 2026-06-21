@@ -552,7 +552,8 @@ async function startFileMatchDownload() {
     // 对每个文件进行匹配
     let processedCount = 0;
     
-    for (const file of parsedFiles) {
+    for (let index = 0; index < parsedFiles.length; index++) {
+        const file = parsedFiles[index];
         try {
             // 搜索动漫
             const searchUrl = buildApiUrl('/api/v2/search/anime?keyword=' + encodeURIComponent(file.animeName));
