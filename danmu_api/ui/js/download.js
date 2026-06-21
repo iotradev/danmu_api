@@ -933,23 +933,23 @@ function convertDanmuToAss(danmuData, title) {
     const comments = danmuData.comments || [];
     
     // ASS 文件头
-    let ass = '[Script Info]\\n';
-    ass += 'Title: ' + (title || 'Danmu') + '\\n';
-    ass += 'ScriptType: v4.00+\\n';
-    ass += 'WrapStyle: 0\\n';
-    ass += 'ScaledBorderAndShadow: yes\\n';
-    ass += 'YCbCr Matrix: TV.709\\n';
-    ass += 'PlayResX: 1920\\n';
-    ass += 'PlayResY: 1080\\n\\n';
+    let ass = '[Script Info]\n';
+    ass += 'Title: ' + (title || 'Danmu') + '\n';
+    ass += 'ScriptType: v4.00+\n';
+    ass += 'WrapStyle: 0\n';
+    ass += 'ScaledBorderAndShadow: yes\n';
+    ass += 'YCbCr Matrix: TV.709\n';
+    ass += 'PlayResX: 1920\n';
+    ass += 'PlayResY: 1080\n\n';
     
-    ass += '[V4+ Styles]\\n';
-    ass += 'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\\n';
-    ass += 'Style: Default,Microsoft YaHei,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1\\n';
-    ass += 'Style: Top,Microsoft YaHei,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,8,10,10,10,1\\n';
-    ass += 'Style: Bottom,Microsoft YaHei,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1\\n\\n';
+    ass += '[V4+ Styles]\n';
+    ass += 'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n';
+    ass += 'Style: Default,Microsoft YaHei,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1\n';
+    ass += 'Style: Top,Microsoft YaHei,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,8,10,10,10,1\n';
+    ass += 'Style: Bottom,Microsoft YaHei,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1\n\n';
     
-    ass += '[Events]\\n';
-    ass += 'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\\n';
+    ass += '[Events]\n';
+    ass += 'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n';
     
     // 转换每条弹幕
     comments.forEach(comment => {
@@ -959,9 +959,10 @@ function convertDanmuToAss(danmuData, title) {
         
         // 解析弹幕类型
         let style = 'Default';
+        let mode = 1; // 默认滚动
         const pParts = p.split(',');
         if (pParts.length > 1) {
-            const mode = parseInt(pParts[1]);
+            mode = parseInt(pParts[1]);
             if (mode === 5) style = 'Top';
             else if (mode === 4) style = 'Bottom';
         }
@@ -990,7 +991,7 @@ function convertDanmuToAss(danmuData, title) {
             String(centiseconds).padStart(2, '0');
         
         // 滚动弹幕持续 8 秒，固定弹幕持续 5 秒
-        const duration = (style === 'Default') ? 8 : 5;
+        const duration = (mode === 1) ? 8 : 5;
         const endTimeSeconds = time + duration;
         const endHours = Math.floor(endTimeSeconds / 3600);
         const endMinutes = Math.floor((endTimeSeconds % 3600) / 60);
@@ -1003,16 +1004,23 @@ function convertDanmuToAss(danmuData, title) {
             String(endCentiseconds).padStart(2, '0');
         
         // 转义文本中的特殊字符
-        const escapedText = text.replace(/\\\\/g, '\\\\\\\\').replace(/\\{/g, '\\\\{').replace(/\\}/g, '\\\\}');
+        const escapedText = text.replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}');
         
-        // 生成 ASS 行
-        let effect = '';
-        if (style === 'Default') {
+        // 生成特效标签
+        let effectTag = '';
+        if (mode === 1) {
             // 滚动弹幕：从右向左滚动
-            effect = '\\move(1920,0,0,0)';
+            effectTag = '{\\move(1920,0,-500,0)}';
+        } else if (mode === 5) {
+            // 顶部弹幕
+            effectTag = '{\\pos(960,50)}';
+        } else if (mode === 4) {
+            // 底部弹幕
+            effectTag = '{\\pos(960,1030)}';
         }
         
-        ass += 'Dialogue: 0,' + startTime + ',' + endTime + ',' + style + ',,0,0,0,' + effect + ',' + escapedText + '\\n';
+        // 生成 ASS 行：特效标签放在 Text 字段中
+        ass += 'Dialogue: 0,' + startTime + ',' + endTime + ',' + style + ',,0,0,0,,' + effectTag + escapedText + '\n';
     });
     
     return ass;
