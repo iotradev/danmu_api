@@ -712,13 +712,4 @@ async function downloadFileMatchResults() {
     addLog('文件匹配下载完成: 成功 ' + successCount + ', 失败 ' + failCount, 'success');
 }
 
-// HTML 转义
-function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;')
-              .replace(/"/g, '&quot;')
-              .replace(/'/g, '&#039;');
-}
 `;
