@@ -581,8 +581,14 @@ async function startFileMatchDownload() {
                 const bangumiData = await bangumiResp.json();
                 
                 if (bangumiData.success && bangumiData.bangumi && bangumiData.bangumi.episodes) {
+                    const episodes = bangumiData.bangumi.episodes;
+                    addLog('剧集数量: ' + episodes.length + ', 目标集数: ' + file.episode, 'info');
+                    if (episodes.length > 0) {
+                        addLog('第一集数据: ' + JSON.stringify(episodes[0]).substring(0, 200), 'info');
+                    }
+                    
                     // 根据集数查找对应的 episodeId
-                    const targetEpisode = bangumiData.bangumi.episodes.find(ep => ep.episodeNumber === file.episode);
+                    const targetEpisode = episodes.find(ep => ep.episodeNumber === file.episode);
                     
                     if (targetEpisode) {
                         file.episodeId = targetEpisode.episodeId;
