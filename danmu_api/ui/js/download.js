@@ -586,11 +586,11 @@ async function startFileMatchDownload() {
                     const episodes = bangumiData.bangumi.episodes;
                     addLog('剧集数量: ' + episodes.length + ', 目标集数: ' + file.episode, 'info');
                     if (episodes.length > 0) {
-                        addLog('第一集数据: ' + JSON.stringify(episodes[0]).substring(0, 200), 'info');
+                        addLog('第一集数据: episodeNumber=' + episodes[0].episodeNumber + ' (type: ' + typeof episodes[0].episodeNumber + ')', 'info');
                     }
                     
-                    // 根据集数查找对应的 episodeId
-                    const targetEpisode = episodes.find(ep => ep.episodeNumber === file.episode);
+                    // 根据集数查找对应的 episodeId（episodeNumber 可能是字符串或数字）
+                    const targetEpisode = episodes.find(ep => parseInt(ep.episodeNumber) === file.episode);
                     
                     if (targetEpisode) {
                         file.episodeId = targetEpisode.episodeId;
