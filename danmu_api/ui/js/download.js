@@ -580,6 +580,8 @@ async function startFileMatchDownload() {
                 const bangumiResp = await fetch(bangumiUrl);
                 const bangumiData = await bangumiResp.json();
                 
+                addLog('剧集详情: success=' + bangumiData.success + ', has bangumi=' + !!bangumiData.bangumi + ', has episodes=' + !!(bangumiData.bangumi && bangumiData.bangumi.episodes), 'info');
+                
                 if (bangumiData.success && bangumiData.bangumi && bangumiData.bangumi.episodes) {
                     const episodes = bangumiData.bangumi.episodes;
                     addLog('剧集数量: ' + episodes.length + ', 目标集数: ' + file.episode, 'info');
