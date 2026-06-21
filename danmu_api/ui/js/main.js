@@ -589,6 +589,20 @@ function escapeHtml(text) {
         return '';
     }
     
+    // 如果是数组，转换为逗号分隔的字符串
+    if (Array.isArray(text)) {
+        text = text.join(', ');
+    }
+    
+    // 如果是对象，转换为 JSON 字符串
+    if (typeof text === 'object') {
+        try {
+            text = JSON.stringify(text);
+        } catch (e) {
+            text = String(text);
+        }
+    }
+    
     // 将非字符串值转换为字符串
     const str = String(text);
     
