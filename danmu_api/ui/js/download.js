@@ -854,58 +854,77 @@ async function downloadAllEpisodesFromSource() {
     
     let successCount = 0;
     let failCount = 0;
+    const failedEpisodes = [];
     
     for (let i = 0; i < episodes.length; i++) {
         const episode = episodes[i];
         const episodeNum = parseInt(episode.episodeNumber);
         const paddedNum = String(episodeNum).padStart(2, '0');
         
-        try {
-            // 生成文件名：基础名 + S01E01 + 扩展名
-            const danmuFilename = baseName + 'S01E' + paddedNum;
-            
-            const resp = await fetch(buildApiUrl('/api/v2/comment/' + episode.episodeId + '?format=' + format));
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        let retryCount = 0;
+        const maxRetries = 3;
+        let success = false;
+        
+        while (retryCount < maxRetries && !success) {
+            try {
+                // 生成文件名：基础名 + S01E01 + 扩展名
+                const danmuFilename = baseName + 'S01E' + paddedNum;
+                
+                const resp = await fetch(buildApiUrl('/api/v2/comment/' + episode.episodeId + '?format=' + format));
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
-            let content, mimeType, fileExt;
-            if (format === 'xml') {
-                content = await resp.text();
-                mimeType = 'application/xml';
-                fileExt = 'xml';
-            } else if (format === 'ass') {
-                const data = await resp.json();
-                content = convertDanmuToAss(data, danmuFilename);
-                mimeType = 'text/plain';
-                fileExt = 'ass';
-            } else {
-                const data = await resp.json();
-                content = JSON.stringify(data, null, 2);
-                mimeType = 'application/json';
-                fileExt = 'json';
+                let content, mimeType, fileExt;
+                if (format === 'xml') {
+                    content = await resp.text();
+                    mimeType = 'application/xml';
+                    fileExt = 'xml';
+                } else if (format === 'ass') {
+                    const data = await resp.json();
+                    content = convertDanmuToAss(data, danmuFilename);
+                    mimeType = 'text/plain';
+                    fileExt = 'ass';
+                } else {
+                    const data = await resp.json();
+                    content = JSON.stringify(data, null, 2);
+                    mimeType = 'application/json';
+                    fileExt = 'json';
+                }
+
+                const blob = new Blob([content], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = danmuFilename + '.' + fileExt;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                success = true;
+                successCount++;
+                addLog('下载成功: ' + danmuFilename, 'success');
+            } catch (e) {
+                retryCount++;
+                if (retryCount < maxRetries) {
+                    addLog('第' + episodeNum + '集下载失败，重试 ' + retryCount + '/' + maxRetries, 'warn');
+                    await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                } else {
+                    failCount++;
+                    failedEpisodes.push(episodeNum);
+                    addLog('下载失败 第' + episodeNum + '集: ' + e.message, 'error');
+                }
             }
-
-            const blob = new Blob([content], { type: mimeType });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = danmuFilename + '.' + fileExt;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            successCount++;
-            addLog('下载成功: ' + danmuFilename, 'success');
-            
-            // 添加延迟避免请求过快
-            await new Promise(resolve => setTimeout(resolve, 300));
-        } catch (e) {
-            failCount++;
-            addLog('下载失败 第' + episodeNum + '集: ' + e.message, 'error');
         }
+        
+        // 添加延迟避免请求过快
+        await new Promise(resolve => setTimeout(resolve, 500));
     }
     
-    customAlert('全部集数下载完成: 成功 ' + successCount + ' 个, 失败 ' + failCount + ' 个');
+    let message = '全部集数下载完成: 成功 ' + successCount + ' 个, 失败 ' + failCount + ' 个';
+    if (failedEpisodes.length > 0 && failedEpisodes.length <= 10) {
+        message += '\\n失败集数: ' + failedEpisodes.join(', ');
+    }
+    customAlert(message);
     addLog('全部集数下载完成: 成功 ' + successCount + ', 失败 ' + failCount, 'success');
 }
 
