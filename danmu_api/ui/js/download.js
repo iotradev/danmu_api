@@ -42,22 +42,22 @@ function switchDownloadMode(mode, event) {
 // 从文件名中提取季数
 function extractSeasonFromFilename(filename) {
     // 移除文件扩展名
-    const nameWithoutExt = filename.replace(/\.[^.]+$/, '');
+    const nameWithoutExt = filename.replace(/\\.[^.]+$/, '');
     
     // 1. 明确季数标识：第X季/期/部
-    const explicitMatch = nameWithoutExt.match(/第\s*([0-9一二三四五六七八九十]+)\s*[季期部]/);
+    const explicitMatch = nameWithoutExt.match(/第\\s*([0-9一二三四五六七八九十]+)\\s*[季期部]/);
     if (explicitMatch) {
         return convertChineseNumber(explicitMatch[1]);
     }
     
     // 2. S01/S1/Season 1 格式
-    const seasonMatch = nameWithoutExt.match(/(?:S(?:eason)?|Season)\s*(\d+)/i);
+    const seasonMatch = nameWithoutExt.match(/(?:S(?:eason)?|Season)\\s*(\\d+)/i);
     if (seasonMatch) {
         return parseInt(seasonMatch[1], 10);
     }
     
     // 3. Part 2 格式
-    const partMatch = nameWithoutExt.match(/Part\s*(\d+)/i);
+    const partMatch = nameWithoutExt.match(/Part\\s*(\\d+)/i);
     if (partMatch) {
         return parseInt(partMatch[1], 10);
     }
@@ -68,10 +68,10 @@ function extractSeasonFromFilename(filename) {
 // 从文件名中提取集数
 function extractEpisodeFromFilename(filename) {
     // 移除文件扩展名
-    const nameWithoutExt = filename.replace(/\.[^.]+$/, '');
+    const nameWithoutExt = filename.replace(/\\.[^.]+$/, '');
     
     // 1. E01/E1/EP01/EP1 格式（最常见）
-    const epMatch = nameWithoutExt.match(/[Ee][Pp]?(\d{1,3})/);
+    const epMatch = nameWithoutExt.match(/[Ee][Pp]?(\\d{1,3})/);
     if (epMatch) {
         return parseInt(epMatch[1], 10);
     }
@@ -88,27 +88,27 @@ function extractEpisodeFromFilename(filename) {
 // 从文件名中提取动漫名称（简化版）
 function extractAnimeNameFromFilename(filename) {
     // 移除文件扩展名
-    let name = filename.replace(/\.[^.]+$/, '');
+    let name = filename.replace(/\\.[^.]+$/, '');
     
     // 移除年份及之后的内容（如 2026.2160p...）
-    name = name.replace(/\.\d{4}\..*$/, '');
+    name = name.replace(/\\.\\d{4}\\..*$/, '');
     
     // 移除季集信息（S01E01 等）
-    name = name.replace(/[\.\s]?[Ss]\d+[Ee]\d+.*$/, '');
-    name = name.replace(/[\.\s]?[Ee][Pp]?\d+.*$/, '');
-    name = name.replace(/[\.\s]?第\d+集.*$/, '');
+    name = name.replace(/[\\.\\s]?[Ss]\\d+[Ee]\\d+.*$/, '');
+    name = name.replace(/[\\.\\s]?[Ee][Pp]?\\d+.*$/, '');
+    name = name.replace(/[\\.\\s]?第\\d+集.*$/, '');
     
     // 移除常见的质量/编码信息
-    name = name.replace(/[\.\s]?(2160p|1080p|720p|480p|4K|WEB-DL|BluRay|REMUX|x264|x265|H264|H265|HEVC|AAC|DTS|DDP?\d*\.?\d*).*$/i, '');
+    name = name.replace(/[\\.\\s]?(2160p|1080p|720p|480p|4K|WEB-DL|BluRay|REMUX|x264|x265|H264|H265|HEVC|AAC|DTS|DDP?\\d*\\.?\\d*).*$/i, '');
     
     // 移除中括号内容
-    name = name.replace(/\[.*?\]/g, '');
+    name = name.replace(/\\[.*?\\]/g, '');
     
     // 清理分隔符
     name = name.replace(/[._]/g, ' ').trim();
     
     // 移除末尾的空格和点
-    name = name.replace(/[\.\s]+$/, '');
+    name = name.replace(/[.\\s]+$/, '');
     
     return name;
 }
