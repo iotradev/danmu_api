@@ -984,7 +984,7 @@ function convertDanmuToAss(danmuData, title) {
             String(endCentiseconds).padStart(2, '0');
         
         // 转义文本中的特殊字符
-        const escapedText = text.replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}');
+        const escapedText = text.replace(/\\\\/g, '\\\\\\\\').replace(/\\{/g, '\\\\{').replace(/\\}/g, '\\\\}');
         
         // 生成 ASS 行
         let effect = '';
