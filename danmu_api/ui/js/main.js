@@ -527,6 +527,11 @@ async function init() {
             initPushDanmuInterface();
         }
         
+        // 初始化弹幕下载界面
+        if (typeof initDownloadInterface === 'function') {
+            initDownloadInterface();
+        }
+        
         // 初始化接口调试界面
         if (typeof initApiTestInterface === 'function') {
             initApiTestInterface();

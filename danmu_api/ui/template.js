@@ -8,6 +8,7 @@ import { previewJsContent } from "./js/preview.js";
 import { logviewJsContent } from "./js/logview.js";
 import { apitestJsContent } from "./js/apitest.js";
 import { pushDanmuJsContent } from "./js/pushdanmu.js";
+import { downloadJsContent } from "./js/download.js";
 import { requestRecordsJsContent } from "./js/requestrecords.js";
 import { systemSettingsJsContent } from "./js/systemsettings.js";
 
@@ -54,6 +55,7 @@ export const HTML_TEMPLATE = /* html */ `
                 <button class="nav-btn active" onclick="switchSection('preview', event)">配置预览</button>
                 <button class="nav-btn" onclick="switchSection('logs', event)">日志查看</button>
                 <button class="nav-btn" onclick="switchSection('api', event)">接口调试</button>
+                <button class="nav-btn" onclick="switchSection('download', event)">弹幕下载</button>
                 <button class="nav-btn" onclick="switchSection('push', event)">推送弹幕</button>
                 <button class="nav-btn" onclick="switchSection('request-records', event)">请求记录</button>
                 <button class="nav-btn" onclick="switchSection('env', event)" id="env-nav-btn">系统配置</button>
@@ -160,6 +162,23 @@ export const HTML_TEMPLATE = /* html */ `
 
                     <div id="danmu-result-area" style="display:none;"></div>
                 </div>
+            </div>
+
+            <!-- 弹幕下载 -->
+            <div class="section" id="download-section">
+                <h2>弹幕下载</h2>
+                <p style="color: #666; margin-bottom: 15px;">搜索动漫并下载弹幕文件，支持JSON和XML格式，可单集下载或批量下载</p>
+                <div class="download-controls" style="margin-bottom: 20px;">
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label>搜索关键字</label>
+                        <div style="display: flex; gap: 10px; margin-top: 5px;">
+                            <input type="text" id="download-search-keyword" placeholder="请输入动漫名称" style="flex: 1;">
+                            <button class="btn btn-primary" id="download-search-btn" onclick="searchAnimeForDownload()">搜索</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="download-anime-list" class="anime-list" style="display: none;"></div>
+                <div id="download-episode-list" class="episode-list" style="display: none; margin-top: 20px;"></div>
             </div>
 
             <!-- 推送弹幕 -->
@@ -363,6 +382,7 @@ export const HTML_TEMPLATE = /* html */ `
         ${previewJsContent}
         ${logviewJsContent}
         ${apitestJsContent}
+        ${downloadJsContent}
         ${pushDanmuJsContent}
         ${requestRecordsJsContent}
         ${systemSettingsJsContent}
