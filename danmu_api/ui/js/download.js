@@ -1004,19 +1004,19 @@ function convertDanmuToAss(danmuData, title) {
             String(endCentiseconds).padStart(2, '0');
         
         // 转义文本中的特殊字符
-        const escapedText = text.replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}');
+        const escapedText = text.replace(/\\\\/g, '\\\\\\\\').replace(/\\{/g, '\\\\{').replace(/\\}/g, '\\\\}');
         
         // 生成特效标签
         let effectTag = '';
         if (mode === 1) {
             // 滚动弹幕：从右向左滚动
-            effectTag = '{\\move(1920,0,-500,0)}';
+            effectTag = '{\\\\move(1920,0,-500,0)}';
         } else if (mode === 5) {
             // 顶部弹幕
-            effectTag = '{\\pos(960,50)}';
+            effectTag = '{\\\\pos(960,50)}';
         } else if (mode === 4) {
             // 底部弹幕
-            effectTag = '{\\pos(960,1030)}';
+            effectTag = '{\\\\pos(960,1030)}';
         }
         
         // 生成 ASS 行：特效标签放在 Text 字段中
