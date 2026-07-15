@@ -112,7 +112,7 @@ let logs = []; // 保留本地日志数组，用于UI显示
 // 版本信息
 let currentVersion = '';
 let latestVersion = '';
-let currentToken = 'globals.currentToken';
+let currentToken = ''; // 从URL解析
 let currentAdminToken = ''; // admin token，用于系统管理
 let originalToken = '';
 
@@ -143,6 +143,35 @@ function saveBaseUrl() {
         setTimeout(() => {
             location.reload();
         }, 1000);
+    }
+}
+
+// 从URL解析token
+function parseUrlToken() {
+    let urlPath = window.location.pathname;
+    
+    // 如果配置了反代，移除反代路径前缀
+    if (customBaseUrl) {
+        try {
+            let proxyPath = customBaseUrl.startsWith('http') 
+                ? new URL(customBaseUrl).pathname 
+                : customBaseUrl;
+            
+            if (proxyPath.endsWith('/')) {
+                proxyPath = proxyPath.slice(0, -1);
+            }
+            if (proxyPath && urlPath.startsWith(proxyPath)) {
+                urlPath = urlPath.substring(proxyPath.length);
+            }
+        } catch(e) { /* ignore */ }
+    }
+    
+    const pathParts = urlPath.split('/').filter(part => part !== '');
+    if (pathParts.length > 0) {
+        const urlToken = pathParts[0];
+        // 将URL中的token设置为currentToken（用于API调用）
+        // 注意：这里先设置一个临时值，实际token会在fetchConfig后更新
+        currentToken = urlToken;
     }
 }
 
@@ -504,6 +533,9 @@ function closeModal() {
 // 页面加载完成后初始化时获取一次日志
 async function init() {
     try {
+        // 在任何API调用之前，先从URL解析token
+        parseUrlToken();
+        
         await updateApiEndpoint(); // 等待API端点更新完成
         getDockerVersion();
         // 从API获取配置信息，包括检查是否有admin token
