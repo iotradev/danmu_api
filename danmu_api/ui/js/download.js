@@ -933,23 +933,23 @@ function convertDanmuToAss(danmuData, title) {
     const comments = danmuData.comments || [];
     
     // ASS 文件头
-    let ass = '[Script Info]\n';
-    ass += 'Title: ' + (title || 'Danmu') + '\n';
-    ass += 'ScriptType: v4.00+\n';
-    ass += 'WrapStyle: 0\n';
-    ass += 'ScaledBorderAndShadow: yes\n';
-    ass += 'YCbCr Matrix: TV.709\n';
-    ass += 'PlayResX: 1920\n';
-    ass += 'PlayResY: 1080\n\n';
+    let ass = '[Script Info]\\n';
+    ass += 'Title: ' + (title || 'Danmu') + '\\n';
+    ass += 'ScriptType: v4.00+\\n';
+    ass += 'WrapStyle: 0\\n';
+    ass += 'ScaledBorderAndShadow: yes\\n';
+    ass += 'YCbCr Matrix: TV.709\\n';
+    ass += 'PlayResX: 1920\\n';
+    ass += 'PlayResY: 1080\\n\\n';
     
-    ass += '[V4+ Styles]\n';
-    ass += 'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n';
-    ass += 'Style: Default,Microsoft YaHei,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1\n';
-    ass += 'Style: Top,Microsoft YaHei,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,8,10,10,10,1\n';
-    ass += 'Style: Bottom,Microsoft YaHei,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1\n\n';
+    ass += '[V4+ Styles]\\n';
+    ass += 'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\\n';
+    ass += 'Style: Default,Microsoft YaHei,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1\\n';
+    ass += 'Style: Top,Microsoft YaHei,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,8,10,10,10,1\\n';
+    ass += 'Style: Bottom,Microsoft YaHei,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1\\n\\n';
     
-    ass += '[Events]\n';
-    ass += 'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n';
+    ass += '[Events]\\n';
+    ass += 'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\\n';
     
     // 转换每条弹幕
     comments.forEach(comment => {
@@ -1020,7 +1020,7 @@ function convertDanmuToAss(danmuData, title) {
         }
         
         // 生成 ASS 行：特效标签放在 Text 字段中
-        ass += 'Dialogue: 0,' + startTime + ',' + endTime + ',' + style + ',,0,0,0,,' + effectTag + escapedText + '\n';
+        ass += 'Dialogue: 0,' + startTime + ',' + endTime + ',' + style + ',,0,0,0,,' + effectTag + escapedText + '\\n';
     });
     
     return ass;
