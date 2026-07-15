@@ -369,10 +369,6 @@ async function fetchAndSetConfig() {
     const config = await fetch(buildApiUrl('/api/config', true)).then(response => response.json());
     const hasAdminToken = config.hasAdminToken;
     currentAdminToken = config.originalEnvVars?.ADMIN_TOKEN || '';
-    // 更新currentToken（用于非系统API调用）
-    if (config.originalEnvVars?.TOKEN) {
-        currentToken = config.originalEnvVars.TOKEN;
-    }
     return config;
 }
 
